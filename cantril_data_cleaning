@@ -6,12 +6,18 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
+file1=$1
+file2=$2
+file3=$3
+
+echo "Checking files: $file1, $file2, $file3"
+echo ""
+
 # Process each file
-for file in "$@"; do
+for file in "$file1" "$file2" "$file3"; do
 
     echo "Processing file: $file"
     echo "----------------------------------------"
-
 
     # 获取文件的第一行
     first_line=$(head -n 1 "$file")
@@ -47,16 +53,78 @@ for file in "$@"; do
 
     if [ "$column_number" ]; then
 
-        awk -F '\t' -v col="$column_number" 'BEGIN {FS = "\t"; OFS = "\t"} {$col = ""; sub("\t\t","\t") } 1' <<< "$result" > "${file%.tsv}_processed.tsv"
-    
+        # awk -F '\t' -v col="$column_number" 'BEGIN {FS = "\t"; OFS = "\t"} {$col = ""; sub("\t\t","\t") } 1' <<< "$result" > "${file%.tsv}_processed.tsv"
+        awk -F '\t' -v col="$column_number" 'BEGIN {FS = "\t"; OFS = "\t"} {$col = ""; sub("\t\t","\t") } 1' "$file" > tmpfile && mv tmpfile "$file"
+
     else
 
-        echo "$result" > "${file%.tsv}_processed.tsv"
+        echo "$result" > "$file"
 
     fi
 
     echo ""
-
-    echo "Processing file: ${file%.tsv}_processed.tsv"
-
 done
+
+# awk 'NR == 1 { print; next } NR == FNR {
+#         key = ""
+#         for (i = 1; i < NF - 1; i++)
+#             key = key $i " "
+#         array[key] = $0
+#         next
+#      }
+#      {
+#         key = ""
+#         for (i = 1; i < NF - 1; i++)
+#             key = key $i " "
+#         if (key in array)
+#             print array[key], $NF
+#      }' $file1 $file2 > output.tsv
+
+
+awk '
+BEGIN {
+    FS="\t"
+    OFS="\t"
+}
+
+FNR==1 {
+    next
+}
+
+{
+    entity = $1
+    code = $2
+    year = $3
+    if (FILENAME == "file1.tsv") {
+        gdp_per_capita[entity,year] = $5
+        population[entity,year] = $6
+        cantril_score[entity,year] = $4
+    } else if (FILENAME == "file2.tsv") {
+        homicide_rate[entity,year] = $4
+    } else if (FILENAME == "file3.tsv") {
+        life_expectancy[entity,year] = $4
+        cantril_score[entity,year] = $5
+        population[entity,year] = $6
+    }
+}
+
+END {
+    for (key in gdp_per_capita) {
+        split(key, keys, SUBSEP)
+        entity = keys[1]
+        year = keys[2]
+        print entity, code[entity,year], year, gdp_per_capita[entity,year], population[entity,year], homicide_rate[entity,year], life_expectancy[entity,year], cantril_score[entity,year]
+    }
+}' $file1 $file2 $file3 > output.tsv
+
+# awk 'NR==FNR {
+#     a[$2,$3]=$0; 
+#     next
+# } 
+# ($2,$3) in a {
+#     print a[$2,$3] "\t" $0
+# }' $file1 $file2 > output.tsv
+
+
+
+
