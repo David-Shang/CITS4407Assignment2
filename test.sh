@@ -1,68 +1,46 @@
 #!/bin/bash
 
-# Check if three file names are provided
+# file1_path=$1
+# file2_path=$2
+# file3_path=$3
 
-# Process each file
-for file in "$@"; do
-    echo "Processing file: $file"
+file1_path="gdp-vs-happiness.tsv"
+file2_path="homicide-rate-unodc.tsv"
+file3_path="life-satisfaction-vs-life-expectancy.tsv"
 
-    echo "----------------------------------------"
+output="output.tsv"
 
+# Function to extract headers from all files and combine them
+extract_and_combine_headers () {
+    for file in "$@"; do
+        # Extract the header of each file, combine, and remove duplicates
+        head -n 1 "$file"
+    done | tr '\t' '\n' | sort -u | tr '\n' '\t' | sed 's/\t$/\n/'
+}
 
-    # column_number=$(awk -F '\t' '{ for (i=1; i<=NF; i++) if ($i == "Continent") {print i} }' "$file")
-
-    # result=$(awk -F'\t' '$2 != "" { print }' "$file")
-
-    # if [ "$column_number" ]; then
-
-    #     awk -F '\t' -v col="$column_number" 'BEGIN {FS = "\t"; OFS = "\t"} {$col = ""; sub("\t\t","\t") } 1' <<< "$result" > "${file%.tsv}_processed.tsv"
-    
-    # else
-
-    #     echo "$result" > "${file%.tsv}_processed.tsv"
-
-    # fi
-
-
-    awk -F'\t' 'NR == 1 || ($3 >= 2011 && $3 <= 2021)' "$file" > "${file%.tsv}_processed.tsv"
-
-done
-
-
-
-#     echo ""
-
-    # # 获取文件的第一行
-    # first_line=$(head -n 1 "$file")
-
-    # # 检查第一行是否包含制表符
-    # if [[ "$first_line" =~ $'\t' ]]; then
-    #     echo "File $file is already tab-separated."
-    #     echo ""
-    # else
-    #     # 使用 awk 将文件转换为制表符分隔格式
-    #     awk 'BEGIN { FS="\t"; OFS="\t" } { print }' "$file" > "${file}.tmp"
-    #     mv "${file}.tmp" "$file"
-    #     echo "File $file has been converted to tab-separated format."
-    #     echo ""
-    # fi
-
-#     # 获取标题行的单元格数量
-#     num_cells=$(head -n 1 "$file" | awk -F'\t' '{print NF}')
-
-#     echo "Number of cells in the header: $num_cells"
-#     echo ""
-
-#     # 检查文件中的每一行是否具有相同的单元格数量
-#     awk -F'\t' -v num_cells="$num_cells" '{
-#         if (NF != num_cells) {
-#             print "Line " NR " has a different number of cells."
+# # Function to join all files based on keys
+# join_files () {
+#     for file in "$@"; do
+#         # Exclude header and sort by keys
+#         tail -n+2 "$file"
+#     done | sort -t $'\t' -k1,1 -k2,2 -k3,3 | awk -F '\t' '{
+#         key = $1 FS $2 FS $3
+#         val = substr($0, length(key) + 2)
+#         if (key in lines) {
+#             lines[key] = lines[key] FS val
+#         } else {
+#             lines[key] = val
 #         }
-#     }' "$file"
+#     } END {
+#         for (key in lines) {
+#             print key FS lines[key]
+#         }
+#     }'
+# }
 
+# Extract and combine headers from all files and save to output file
+extract_and_combine_headers "$file1_path" "$file2_path" "$file3_path" > "$output"
 
-# done
-
-
-# join -t $'\t' -1 1 -2 1 -a 1 -a 2 -a 3 -e '' file1 file2 file3 > output.tsv
+# # Join all files based on keys and append to output file
+# join_files "$file1_path" "$file2_path" "$file3_path" | sort -t $'\t' -k1,1 -k2,2 -k3,3 >> "$output"
 
