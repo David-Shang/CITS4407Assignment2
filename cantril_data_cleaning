@@ -115,8 +115,14 @@ awk 'BEGIN {FS=OFS="\t"}
      FNR == 1 {f++} # Increment the file counter when a new file is processed
      f == 1 {a[$1,$2,$3] = $0; next} # Store the first file in an array
      f == 2 {b[$1,$2,$3] = $0; next} # Store the second file in an array
-     f == 3 && ($1,$2,$3) in a && ($1,$2,$3) in b {print a[$1,$2,$3], $4, $5, $6, b[$1,$2,$3], $4, $5, $6, $0 # Print the common rows from all three files
-     }' $max_file $second_file $third_file > output.tsv # Redirect output to output.tsv
+     f == 3 {
+        if (($1,$2,$3) in b) {
+            print $0, b[$1,$2,$3], a[$1,$2,$3]
+        } else {
+            print $0
+        }
+    }' $third_file $second_file $max_file > output.tsv # Redirect output to output.tsv
+
 
 # Set field separator (FS) and output field separator (OFS) as tab, and print column headers.
 awk 'BEGIN {
@@ -126,10 +132,10 @@ awk 'BEGIN {
 }
 # Print specified columns in the desired order.
 NR > 1 {
-    print $1, $2, $3, $15, $6, $8, $4, $5
+    print $1, $2, $3, $12, $6, $18, $4, $5
 }' output.tsv > cleaned.tsv  # Redirect output to cleaned.tsv
 
-rm output.tsv
+# rm output.tsv
 
 
 
