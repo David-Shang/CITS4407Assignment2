@@ -1,0 +1,96 @@
+#!/bin/bash
+
+awk -F '\t' '
+NR == 1 { print $0; next } # 打印标题行
+{
+    code[$2]++; # 统计每个Code的出现次数
+    ladder[$2]+=$8; # 计算每个Code的Cantril ladder score总和
+    if ($8 != "") {
+        count[$2]++; # 计算每个Code的具体Cantril ladder score的数量
+    }
+    data[$2][$0]++; # 存储每个Code对应的数据行
+}
+END {
+    for (c in code) {
+        if (code[c] >= 3 && count[c] >= 3) { # 如果Code的数据一样且Cantril ladder score有具体数字的数量大于等于3
+            for (d in data[c]) {
+                print d; # 打印这些数据行
+            }
+        }
+    }
+}' cleaned.tsv > CantrilOverThree.tsv
+
+# 提取需要的列数据
+awk 'BEGIN {FS=OFS="\t"} NR > 1 {print $2, $4, $5, $6, $7, $8}' CantrilOverThree.tsv > tmp.tsv
+
+awk 'BEGIN {FS=OFS="\t"} {for (i=1; i<=NF; i++) if ($i=="") $i=0} 1' tmp.tsv > data.tsv
+
+# 清空或创建结果文件
+> correlation_results.tsv
+
+# 提取唯一的第一列值
+categories=$(awk '{print $1}' data.tsv | sort | uniq)
+
+# 遍历每个类别
+for category in $categories
+do
+    # 提取该类别的数据
+    data=$(awk -v cat="$category" '$1 == cat' data.tsv)
+    
+    # 计算相关系数
+    correlation_2_6=$(echo "$data" | awk '{x+=$2; y+=$6; xy+=$2*$6; xx+=$2*$2; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
+    
+    correlation_3_6=$(echo "$data" | awk '{x+=$3; y+=$6; xy+=$3*$6; xx+=$3*$3; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
+    
+    correlation_4_6=$(echo "$data" | awk '{x+=$4; y+=$6; xy+=$4*$6; xx+=$4*$4; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
+    
+    correlation_5_6=$(echo "$data" | awk '{x+=$5; y+=$6; xy+=$5*$6; xx+=$5*$5; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
+    
+    # 输出相关系数到结果文件
+    echo -e "$category\t$correlation_2_6\t$correlation_3_6\t$correlation_4_6\t$correlation_5_6" >> correlation_results.tsv
+done
+
+awk '{sum1+=$2; sum2+=$3; sum3+=$4; sum4+=$5} END {print "Column 2 average:", sum1/NR, "\nColumn 3 average:", sum2/NR, "\nColumn 4 average:", sum3/NR, "\nColumn 5 average:", sum4/NR}' correlation_results.tsv
+
+
+
+
+
+
+
+
+
+
+
+# awk -F'\t' '
+# {
+#     for (i = 1; i <= 5; i++) {
+#         if ($i != "") {
+#             sum[i] += $i
+#             count[i]++
+#         }
+#     }
+# }
+# END {
+#     for (i = 1; i <= 5; i++) {
+#         if (count[i] > 0) {
+#             average = sum[i] / count[i]
+#             printf("%.2f", average) > "average.tsv"  # 追加到文件中
+#             if (i < 5) {
+#                 printf("\t") > "average.tsv"  # 在列之间加制表符
+#             }
+#         } else {
+#             printf("NaN") > "average.tsv"  # 如果没有数据，则写入"NaN"
+#             if (i < 5) {
+#                 printf("\t") > "average.tsv"  # 在列之间加制表符
+#             }
+#         }
+#     }
+#     printf("\n") > "average.tsv"  # 写入换行符
+# }' data.tsv
+
+
+
+
+
+
