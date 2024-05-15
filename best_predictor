@@ -1,43 +1,45 @@
 #!/bin/bash
 
+# Clean out file with three or more Cantril data
 awk -F '\t' '
-NR == 1 { print $0; next } # 打印标题行
+NR == 1 {
+    header = $0; # Store the header
+    next;
+}
 {
-    code[$2]++; # 统计每个Code的出现次数
-    ladder[$2]+=$8; # 计算每个Code的Cantril ladder score总和
-    if ($8 != "") {
-        count[$2]++; # 计算每个Code的具体Cantril ladder score的数量
+    if ($8 != "") { # If the 8th column is not empty
+        count[$2]++;  # Increment count for the corresponding code
     }
-    data[$2][$0]++; # 存储每个Code对应的数据行
+    data[$2] = (data[$2] ? data[$2] ORS : "") $0; # Store data by code
 }
 END {
-    for (c in code) {
-        if (code[c] >= 3 && count[c] >= 3) { # 如果Code的数据一样且Cantril ladder score有具体数字的数量大于等于3
-            for (d in data[c]) {
-                print d; # 打印这些数据行
-            }
+    print header;
+    for (code in data) { # Loop through stored data by code:
+        if (count[code] >= 3) { # If count for the code is greater than or equal to 3:
+            print data[code]; # Print the stored data for the code
         }
     }
-}' cleaned.tsv > CantrilOverThree.tsv
+}' cleaned.tsv > CantrilOverThree.tsv # Redirect output to CantrilOverThree.tsv
 
-# 提取需要的列数据
+# For lines beyond the first (skipping header), redirect output to tmp.tsv
 awk 'BEGIN {FS=OFS="\t"} NR > 1 {print $2, $4, $5, $6, $7, $8}' CantrilOverThree.tsv > tmp.tsv
 
+# Replace empty field with 0
 awk 'BEGIN {FS=OFS="\t"} {for (i=1; i<=NF; i++) if ($i=="") $i=0} 1' tmp.tsv > data.tsv
 
-# 清空或创建结果文件
+# Clear or create result file
 > correlation_results.tsv
 
-# 提取唯一的第一列值
+# Extract unique values from the first column
 categories=$(awk '{print $1}' data.tsv | sort | uniq)
 
-# 遍历每个类别
+# Iterate through each category
 for category in $categories
 do
-    # 提取该类别的数据
+    # Retrieve the data for that category
     data=$(awk -v cat="$category" '$1 == cat' data.tsv)
     
-    # 计算相关系数
+    # Calculate the correlation coefficient
     correlation_2_6=$(echo "$data" | awk '{x+=$2; y+=$6; xy+=$2*$6; xx+=$2*$2; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
     
     correlation_3_6=$(echo "$data" | awk '{x+=$3; y+=$6; xy+=$3*$6; xx+=$3*$3; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
@@ -46,51 +48,35 @@ do
     
     correlation_5_6=$(echo "$data" | awk '{x+=$5; y+=$6; xy+=$5*$6; xx+=$5*$5; yy+=$6*$6} END{if (NR*xx - x*x != 0 && NR*yy - y*y != 0) print (NR*xy - x*y) / sqrt((NR*xx - x*x) * (NR*yy - y*y)); else print 0}')
     
-    # 输出相关系数到结果文件
+    # Output the correlation coefficient to the result file
     echo -e "$category\t$correlation_2_6\t$correlation_3_6\t$correlation_4_6\t$correlation_5_6" >> correlation_results.tsv
 done
 
-awk '{sum1+=$2; sum2+=$3; sum3+=$4; sum4+=$5} END {print "Column 2 average:", sum1/NR, "\nColumn 3 average:", sum2/NR, "\nColumn 4 average:", sum3/NR, "\nColumn 5 average:", sum4/NR}' correlation_results.tsv
+echo ""
 
+ # Calculate and print the mean correlation
+awk '{sum1+=$2; sum2+=$3; sum3+=$4; sum4+=$5} 
+    END {print "Mean correlation of GDP with Cantril ladder is:", sum1/NR, 
+    "\nMean correlation of Population with Cantril ladder is:", sum2/NR, 
+    "\nMean correlation of Homicide Rate with Cantril ladder is:", sum3/NR, 
+    "\nMean correlation of Life Expectancy with Cantril ladder is:", sum4/NR}' correlation_results.tsv
+echo ""
 
+# Calculate and store the mean correlation
+awk 'BEGIN {FS="\t"}
+    {sum1+=$2; sum2+=$3; sum3+=$4; sum4+=$5} 
+    END {
+        printf("GDP\t%.6f\n", sum1/NR)
+        printf("Population\t%.6f\n", sum2/NR)
+        printf("Homicide Rate\t%.6f\n", sum3/NR)
+        printf("Life Expectancy\t%.6f\n", sum4/NR)
+    }'  correlation_results.tsv | 
+    awk 'BEGIN {FS=OFS="\t"} {print $1, $2, ($2<0 ? -1*$2 : $2)}' | # Print the first column as it is, and if the second column is negative, print its absolute value
+    sort -t$'\t' -k3,3nr > final_answer.tsv # Sort the output based on the absolute value of the second column in descending order and redirect the output to final_answer.tsv
 
+# Print a header line for the most predictive mean correlation with the Cantril ladder
+awk 'NR==1 {print "Most predictive mean correlation with the Cantril ladder is", $1, "(r = ", $2, ")"}' final_answer.tsv
+echo ""
 
-
-
-
-
-
-
-
-# awk -F'\t' '
-# {
-#     for (i = 1; i <= 5; i++) {
-#         if ($i != "") {
-#             sum[i] += $i
-#             count[i]++
-#         }
-#     }
-# }
-# END {
-#     for (i = 1; i <= 5; i++) {
-#         if (count[i] > 0) {
-#             average = sum[i] / count[i]
-#             printf("%.2f", average) > "average.tsv"  # 追加到文件中
-#             if (i < 5) {
-#                 printf("\t") > "average.tsv"  # 在列之间加制表符
-#             }
-#         } else {
-#             printf("NaN") > "average.tsv"  # 如果没有数据，则写入"NaN"
-#             if (i < 5) {
-#                 printf("\t") > "average.tsv"  # 在列之间加制表符
-#             }
-#         }
-#     }
-#     printf("\n") > "average.tsv"  # 写入换行符
-# }' data.tsv
-
-
-
-
-
-
+rm tmp.tsv
+rm data.tsv
