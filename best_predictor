@@ -19,7 +19,7 @@ END {
             print data[code]; # Print the stored data for the code
         }
     }
-}' cleaned.tsv > CantrilOverThree.tsv # Redirect output to CantrilOverThree.tsv
+}' cleaned.tsv | awk -F'\t' '$8 != "" {print}' > CantrilOverThree.tsv # Redirect output to CantrilOverThree.tsv
 
 # For lines beyond the first (skipping header), redirect output to tmp.tsv
 awk 'BEGIN {FS=OFS="\t"} NR > 1 {print $2, $4, $5, $6, $7, $8}' CantrilOverThree.tsv > tmp.tsv
@@ -66,9 +66,9 @@ echo ""
 awk 'BEGIN {FS="\t"}
     {sum1+=$2; sum2+=$3; sum3+=$4; sum4+=$5} 
     END {
+        printf("Homicide Rate\t%.6f\n", sum3/NR)
         printf("GDP\t%.6f\n", sum1/NR)
         printf("Population\t%.6f\n", sum2/NR)
-        printf("Homicide Rate\t%.6f\n", sum3/NR)
         printf("Life Expectancy\t%.6f\n", sum4/NR)
     }'  correlation_results.tsv | 
     awk 'BEGIN {FS=OFS="\t"} {print $1, $2, ($2<0 ? -1*$2 : $2)}' | # Print the first column as it is, and if the second column is negative, print its absolute value
